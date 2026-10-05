@@ -74,7 +74,7 @@ function galleryShotHtml(g, mapKind){
   }
   const by = g.by ? `<span class="gallery-by">${galleryEsc(g.by)}</span>` : '';
   return `<figure class="gallery-shot${wide ? ' is-wide' : ''}">
-      ${galleryWaitPhoto(src, alt, 'gallery-img', `tabindex="0" role="button" aria-label="${galleryEsc(alt)}" onclick="openLightbox('${galleryEsc(src)}', '${galleryEsc(alt)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLightbox('${galleryEsc(src)}', '${galleryEsc(alt)}')}"`)}
+      ${galleryWaitPhoto(src, alt, 'gallery-img', `tabindex="0" role="button" aria-label="${galleryEsc(alt)}" onclick="openLightbox(this.getAttribute('src'), this.alt)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLightbox(this.getAttribute('src'), this.alt)}"`)}
       <figcaption>
         <p>${galleryEsc(cap)}</p>
         ${(by || pin) ? `<p class="gallery-shot-meta">${by}${by && pin ? ' ' : ''}${pin}</p>` : ''}
