@@ -38,7 +38,7 @@ function foodPhotoHtml(d){
   if(!d.photo) return '<div class="dish-photo dish-photo-empty" aria-hidden="true">No photo yet</div>';
   const src = foodEsc(d.photo);
   const name = foodEsc(d.name);
-  const open = `openLightbox('${src}', '${name}')`;
+  const open = `openLightbox(this.getAttribute('src'), this.alt)`;
   return `<div class="photo-wait"><span class="photo-wait-deco" aria-hidden="true"></span><span class="photo-wait-copy kn kn-cycle" tabindex="0"><span class="kn-native">ಸ್ವಲ್ಪ ನಿಲ್ಲಿ</span><span class="kn-en">hold on</span></span><img class="dish-photo" src="${src}" alt="${name}" loading="lazy" tabindex="0" role="button" aria-label="View larger photo of ${name}" onclick="${open}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${open}}" onload="photoWaitReady(this)" onerror="foodPhotoFail(this)"></div>`;
 }
 

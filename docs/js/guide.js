@@ -348,7 +348,7 @@ function buildLocationCard(l){
   const added = agenda.includes(l.id);
   const photos = locationPhotos(l);
   const photosHtml = photos.length
-    ? `<div class="camera-roll">${photos.map(src => waitPhoto(src, l.name, '', `tabindex="0" role="button" aria-label="View larger photo of ${esc(l.name)}" onclick="openLightbox('${esc(src)}', '${esc(l.name)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLightbox('${esc(src)}', '${esc(l.name)}')}"`)).join('')}</div>`
+    ? `<div class="camera-roll">${photos.map(src => waitPhoto(src, l.name, '', `tabindex="0" role="button" aria-label="View larger photo of ${esc(l.name)}" onclick="openLightbox(this.getAttribute('src'), this.alt)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLightbox(this.getAttribute('src'), this.alt)}"`)).join('')}</div>`
     : `<div class="camera-roll-empty"><span>No photo yet. <a href="#add-yours">Write in</a> if you can add one.</span></div>`;
   const pickHtml = (l.personalPick || l.approved) ? PICK_MARK : '';
   const eat = dishesAt(l.id);
@@ -1033,7 +1033,7 @@ function renderGallery(){
       }
       const by = g.by ? `<span class="gallery-by">${esc(g.by)}</span>` : '';
       return `<figure class="gallery-shot${wide ? ' is-wide' : ''}">
-      ${waitPhoto(src, alt, 'gallery-img', `tabindex="0" role="button" aria-label="${esc(alt)}" onclick="openLightbox('${esc(src)}', '${esc(alt)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLightbox('${esc(src)}', '${esc(alt)}')}"`)}
+      ${waitPhoto(src, alt, 'gallery-img', `tabindex="0" role="button" aria-label="${esc(alt)}" onclick="openLightbox(this.getAttribute('src'), this.alt)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLightbox(this.getAttribute('src'), this.alt)}"`)}
       <figcaption>
         <p>${esc(cap)}</p>
         ${(by || pin) ? `<p class="gallery-shot-meta">${by}${by && pin ? ' ' : ''}${pin}</p>` : ''}
