@@ -435,7 +435,7 @@ function focusDish(id){
 }
 function focusPlace(id){
   if(typeof setView === 'function') setView('list');
-  if(typeof setCategory === 'function') setCategory('all'); /* guard: not defined on food.html (#55) */
+  setCategory('all');
   requestAnimationFrame(() => {
     const el = document.getElementById('card-' + id);
     if(el){
