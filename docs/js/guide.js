@@ -29,7 +29,7 @@ const DATA_FILES = {
 };
 
 async function fetchJson(path){
-  /* Omit cache:'no-cache' — these are static files on GitHub Pages and the HTML
+  /* Omit cache:'no-cache' - these are static files on GitHub Pages and the HTML
      already busts the cache via ?v= on JS/CSS. Letting the browser cache the JSON
      avoids revalidating 10 files on every load (#48). */
   const res = await fetch(path);
@@ -192,7 +192,19 @@ function validateCategoryMap(){
   const ids = new Set(CATEGORIES.map(c => c.id));
   Object.entries(CATEGORY_MAP).forEach(([raw, mapped]) => {
     if(!ids.has(mapped)){
-      console.warn(`CATEGORY_MAP: '${raw}' → '${mapped}' not found in categories.json`);
+      console.warn(`CATEGORY_MAP: '${raw}' -> '${mapped}' not found in categories.json`);
+    }
+  });
+  /* Also surface the real #59 failure mode: a location whose own category is
+     neither a map key nor a loaded category id passes through silently. */
+  const known = new Set(Object.keys(CATEGORY_MAP).concat(ids));
+  const seen = new Set();
+  allLocations().forEach(l => {
+    const c = l && l.category;
+    if(!c || seen.has(c)) return;
+    seen.add(c);
+    if(!known.has(c)){
+      console.warn(`CATEGORY_MAP: location category '${c}' matches no map key or categories.json id`);
     }
   });
 }
@@ -328,7 +340,7 @@ function renderPills(){
   const extras = isQuickstart() ? [] : [{id:'picks', label:'Personal picks'}];
   const all = [{id:'all', label:'All'}].concat(extras).concat(CATEGORIES);
   row.innerHTML = all.map(c =>
-    `<button class="pill" data-active="${activeCategory===c.id}" onclick="setCategory('${esc(c.id)}')">${esc(c.label)}</button>`
+    `<button class="pill" data-active="${activeCategory===c.id}" onclick="setCategory(${jsArg(c.id)})">${esc(c.label)}</button>`
   ).join('');
   renderHistorySubfilters();
 }
@@ -368,7 +380,7 @@ function buildLocationCard(l){
   const eat = dishesAt(l.id);
   const eatHtml = eat.length
     ? `<div class="try-block eat-here"><div class="try-label">Eat here</div><div class="dish-try-list">${eat.map(d =>
-        `<button type="button" onclick="focusDish('${esc(d.id)}')">${esc(d.name)}</button>`
+        `<button type="button" onclick="focusDish(${jsArg(d.id)})">${esc(d.name)}</button>`
       ).join('')}</div></div>`
     : '';
   const fieldNotes = l.fieldNotes || {};
@@ -380,16 +392,17 @@ function buildLocationCard(l){
   ].filter(([, value]) => value);
   const fieldNotesHtml = fieldAnchorItems.length
     ? `<dl class="field-anchors" aria-label="Peer field notes">${fieldAnchorItems.map(([label, value]) =>
-        `<div><dt>${label}</dt><dd>${value}</dd></div>`
+        `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`
       ).join('')}</dl>`
     : '';
   const skipHtml = skipCrowdHtml(l);
   const pronounceHtml = l.kn ? `<div class="card-pronounce">${knCycle(l.kn, l.name, 'card-kn')}<span class="card-say">${esc(l.say || '')}</span>${speakBtn(l.kn, 'sm')}</div>` : '';
   const onCityMap = LOCATIONS.some(x => x.id === l.id) || customLocations.some(x => x.id === l.id);
   const mapLinkHtml = onCityMap && (typeof l.lat === 'number' && typeof l.lng === 'number')
-    ? `<button class="map-link-btn" onclick="viewOnMap('${esc(l.id)}')">📍 View on map</button>` : '';
-  const webLabel = l.url && /maps\.(app\.)?goo|google\.com\/maps/i.test(l.url) ? 'Google Maps' : 'Website';
-  const webHtml = l.url ? `<a class="map-link-btn" href="${esc(l.url)}" target="_blank" rel="noopener">${webLabel}</a>` : '';
+    ? `<button class="map-link-btn" onclick="viewOnMap(${jsArg(l.id)})">📍 View on map</button>` : '';
+  const safeUrl = safeHttpUrl(l.url);
+  const webLabel = safeUrl && /maps\.(app\.)?goo|google\.com\/maps/i.test(safeUrl) ? 'Google Maps' : 'Website';
+  const webHtml = safeUrl ? `<a class="map-link-btn" href="${esc(safeUrl)}" target="_blank" rel="noopener">${webLabel}</a>` : '';
   return `<div class="card" id="card-${esc(l.id)}" style="--cat-color:${esc(cat.color)}">
       ${photosHtml}
       <div class="card-top">
@@ -408,7 +421,7 @@ function buildLocationCard(l){
         ${creditLine(l.addedBy)}
       </div>
       <div class="card-actions">
-        <button class="add-btn" data-added="${added}" onclick="toggleAgenda('${esc(l.id)}')">${added ? 'On your list ✓' : '+ Add to list'}</button>
+        <button class="add-btn" data-added="${added}" onclick="toggleAgenda(${jsArg(l.id)})">${added ? 'On your list ✓' : '+ Add to list'}</button>
         ${mapLinkHtml}
         ${webHtml}
       </div>
@@ -419,7 +432,7 @@ function skipCrowdHtml(l){
   if(!s) return '';
   const instead = s.insteadId ? allLocations().find(x => x.id === s.insteadId) : null;
   const name = instead ? instead.name : '';
-  const go = instead ? `<button class="map-link-btn" type="button" onclick="focusPlace('${esc(instead.id)}')">Open ${esc(instead.name)}</button>` : '';
+  const go = instead ? `<button class="map-link-btn" type="button" onclick="focusPlace(${jsArg(instead.id)})">Open ${esc(instead.name)}</button>` : '';
   return `<details class="skip-details">
     <summary>Skip the crowd</summary>
     <p class="why" style="margin-top:8px;color:var(--ink-soft)">${esc(s.why)}</p>
@@ -492,7 +505,7 @@ function renderMap(){
     const cat = catMeta(categoryIdOf(l));
     const icon = L.divIcon({
       className: 'map-pin-wrap',
-      html: `<span class="map-pin-icon" style="background:${cat.color}"></span>`,
+      html: `<span class="map-pin-icon" style="background:${esc(cat.color)}"></span>`,
       iconSize:[18,18], iconAnchor:[9,16], popupAnchor:[0,-12],
     });
     const marker = L.marker([l.lat, l.lng], { icon, title: l.name }).addTo(leafletMap);
@@ -604,13 +617,13 @@ function renderDrawer(){
   body.innerHTML = todoItems().map(({loc:l, done}) => `
     <div class="drawer-item${done ? ' is-done' : ''}">
       <label class="todo-check">
-        <input type="checkbox" ${done ? 'checked' : ''} onchange="toggleTodoDone('${l.id}')">
+        <input type="checkbox" ${done ? 'checked' : ''} onchange="toggleTodoDone(${jsArg(l.id)})">
         <span>
           <span class="todo-name">${esc(l.name)}</span>
           <span class="meta">${esc(l.area)}</span>
         </span>
       </label>
-      <button type="button" onclick="toggleAgenda('${l.id}')">Remove</button>
+      <button type="button" onclick="toggleAgenda(${jsArg(l.id)})">Remove</button>
     </div>
   `).join('');
 }
@@ -638,7 +651,7 @@ function closeLightbox(){
   img.src = '';
   img.alt = '';
 }
-/* Escape handler consolidated in init() — also closes the mode tip. */
+/* Escape handler consolidated in init() - also closes the mode tip. */
 
 function todoChecklistText(){
   const items = todoItems();
@@ -725,7 +738,7 @@ function renderFestivals(){
       <div class="festival-where">${esc(f.where)} · ${knCycle(f.kn, f.name)}</div>
       <p>${esc(f.blurb)}</p>
       ${creditLine(f.addedBy)}
-      ${f.url ? `<p class="festival-credit"><a href="${esc(f.url)}" target="_blank" rel="noopener">Programme</a>${f.also ? ` · <a href="${esc(f.also.url)}" target="_blank" rel="noopener">${esc(f.also.label)}</a>` : ''}</p>` : ''}
+      ${safeHttpUrl(f.url) ? `<p class="festival-credit"><a href="${esc(safeHttpUrl(f.url))}" target="_blank" rel="noopener">Programme</a>${f.also && safeHttpUrl(f.also.url) ? ` · <a href="${esc(safeHttpUrl(f.also.url))}" target="_blank" rel="noopener">${esc(f.also.label)}</a>` : ''}</p>` : ''}
     </div>
   `).join('');
 }
@@ -772,7 +785,7 @@ function renderFoodPreview(){
   if(window.GuideFood && GuideFood.fill){
     GuideFood.fill(host, preview, ctx);
   } else {
-    host.innerHTML = preview.map(d => `<div class="dish-card" id="dish-${d.id}"><div class="dish-name-row"><div class="dish-name">${esc(d.name)}</div></div><p class="dish-desc">${esc(d.desc || '')}</p></div>`).join('');
+    host.innerHTML = preview.map(d => `<div class="dish-card" id="dish-${esc(d.id)}"><div class="dish-name-row"><div class="dish-name">${esc(d.name)}</div></div><p class="dish-desc">${esc(d.desc || '')}</p></div>`).join('');
   }
   if(more){
     more.hidden = false;
@@ -908,13 +921,24 @@ const PEOPLE_NOTES = {
 function esc(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+/* Serialize a value for safe embedding inside an inline event handler:
+   JSON.stringify turns it into a JS string literal and esc() stops the HTML
+   attribute parser from decoding quotes back into live code. */
+function jsArg(v){
+  return esc(JSON.stringify(String(v == null ? '' : v)));
+}
+/* Only http/https URLs may become links - esc() alone still lets a
+   javascript: scheme through into an href. */
+function safeHttpUrl(u){
+  return (typeof u === 'string' && /^https?:/i.test(u)) ? u : '';
+}
 
 /* Prefers the people-rail name, since that is where a contributor states how they
    want to be called. Falls back to the shared map in gallery.js. */
 function creditLine(login, label){
   if(!login) return '';
   let note = PEOPLE_NOTES[login];
-  /* Resolve sameAs aliases so karthik4222 → vinaykarthikbaluguri-svg (#56) */
+  /* Resolve sameAs aliases so karthik4222 -> vinaykarthikbaluguri-svg (#56) */
   const resolvedLogin = (note && note.sameAs) ? note.sameAs : login;
   if(note && note.sameAs) note = PEOPLE_NOTES[note.sameAs] || note;
   const name = (note && note.name) || (window.NammaCredit ? NammaCredit.name(login) : login);
@@ -1104,7 +1128,7 @@ function openPhotoFromQuery(){
   const g = GALLERY.find(x => x.id === id);
   if(!g || typeof g.lat !== 'number' || typeof g.lng !== 'number') return false;
   viewGalleryPin(g.lat, g.lng, g.id);
-  return true; /* signals to init() that a map pin was opened — skip scrollToHashTarget (#42) */
+  return true; /* signals to init() that a map pin was opened - skip scrollToHashTarget (#42) */
 }
 
 function renderPhotoCredits(){
@@ -1147,7 +1171,7 @@ function renderPhotoCredits(){
 
 /* toggleNav, closeNavSub and toggleNavSub live in gallery.js, which every page loads first. */
 
-/* Cache key and TTL for GitHub API responses — avoids hitting the 60 req/hr limit (#47) */
+/* Cache key and TTL for GitHub API responses - avoids hitting the 60 req/hr limit (#47) */
 const PEOPLE_CACHE_KEY = 'blr-people-cache-v1';
 const PEOPLE_CACHE_TTL = 60 * 60 * 1000; /* 1 hour */
 
@@ -1193,9 +1217,13 @@ async function loadPeople(){
       ]);
       contribs = contribRes.ok ? await contribRes.json() : [];
       issues = issueRes.ok ? await issueRes.json() : [];
-      try{
-        localStorage.setItem(PEOPLE_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: { contribs, issues } }));
-      }catch(e){}
+      /* Only cache a fully successful pair - a rate-limit or server error must
+         not be frozen into the cache as an empty result for the whole TTL. */
+      if(contribRes.ok && issueRes.ok){
+        try{
+          localStorage.setItem(PEOPLE_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: { contribs, issues } }));
+        }catch(e){}
+      }
     }
     if(Array.isArray(contribs)){
       contribs.forEach(p => {
@@ -1286,12 +1314,12 @@ if(issueFormEl) issueFormEl.addEventListener('submit', function(e){
     renderPhotoCredits();  /* not called by applyGuideMode */
     renderAgendaCount();   /* not called by applyGuideMode */
     setEra(6);             /* not called by applyGuideMode */
-    await loadPeople(); /* awaited so errors surface to the surrounding try/catch (#50) */
+    loadPeople(); /* non-blocking: its internal try/catch already absorbs errors, so init() and the loader no longer wait on the GitHub API (#47, #50) */
     hideLoader(true);
     const handledPhoto = openPhotoFromQuery();
     focusPlaceFromQuery();
     syncHeaderOffset();
-    /* Skip scrollToHashTarget when a gallery photo pin was opened — it would
+    /* Skip scrollToHashTarget when a gallery photo pin was opened - it would
        scroll back to #explore and push the map below the fold (#42) */
     if(!handledPhoto) scrollToHashTarget();
     addEventListener('hashchange', scrollToHashTarget);
